@@ -1,0 +1,123 @@
+#include <iostream>
+#include <cmath>
+#include <ctime>
+
+using namespace std;
+
+#define POP 200
+
+double fitness_function(double x, double t)
+{
+    return sin(x) - 1.0 / t;
+}
+double mutation(double x0, double x1)  // мутация: генерация случайной величины
+{
+    const int NUM = 10000;
+    return fabs((double)((rand() * NUM) % (int)((x1 - x0) * NUM) + 1) / NUM) + x0;
+}
+double inversion(double x, double eps, double x0, double x1)  // инверсия: поиск в окрестностях точки
+{
+    static int s = 0;
+    s++;
+    s %= 2;
+    if (s == 0)
+        return (x - eps) >= x0 ? x - eps : x0;
+    else return (x + eps) <= x1 ? x + eps : x1;
+}
+void crossover(double* x, double* t, double eps, double x0, double x1)  // кроссовер: среднее арифметическое
+{
+    int k = POP - 1;
+    for (int i = 0; i < 8; i++)
+        for (int j = i + 1; j < 8; j++)
+        {
+            x[k] = (x[i] + x[j]) / 2;
+            k--;
+        }
+    for (int i = 0; i < 8; i++)
+        for (int j = i + 1; j < 8; j++)
+        {
+            t[k] = (t[i] + t[j]) / 2;
+            k--;
+        }
+    for (int i = 0; i < 8; i++)
+    {
+        x[k] = inversion(x[i], eps, x0, x1);
+        k--;
+        x[k] = inversion(x[i], eps, x0, x1);
+        k--;
+        t[k] = inversion(t[i], eps, x0, x1);
+        k--;
+        t[k] = inversion(t[i], eps, x0, x1);
+        k--;
+    }
+    for (int i = 8; i < k; i++)
+    {
+        x[i] = mutation(x0, x1);
+        i++;
+        t[i] = mutation(x0, x1);
+    }
+}
+void sort(double* x, double* t, double* y)  // сортировка по значениям функции от популяции
+{
+    for (int i = 0; i < POP - 1; i++)
+        for (int j = i + 1; j < POP; j++)
+            if ((y[j]) < (y[i])) {
+                double temp = y[i];
+                y[i] = y[j];
+                y[j] = temp;
+                temp = x[i];
+                x[i] = x[j];
+                x[j] = temp;
+                temp = t[i];
+                t[i] = t[j];
+                t[j] = temp;
+            }
+}
+double genetic(double x0, double x1, double eps)  // поиск решения с использованием ГА
+{
+    double population_x[POP]; // создаем массив для популяции x
+    double population_t[POP]; // создаем массив для популяции t
+    double f[POP];
+    int count = 0;
+    for (int i = 0; i < POP; i++)   // Формирование начальной популяции
+    {
+        population_x[i] = mutation(x0, x1); // "создаем популяцию" 
+        population_t[i] = mutation(x0, x1);
+        f[i] = fitness_function(population_x[i], population_t[i]); // значение функции от популяции
+    }
+    sort(population_x, population_t, f); // сортировка по значениям функции
+    do {
+        count++;
+        crossover(population_x, population_t, eps, x0, x1);
+        for (int i = 0; i < POP; i++)
+            f[i] = fitness_function(population_x[i], population_t[i]);
+        sort(population_x, population_t, f);
+    } while (count < 20000);
+    cout << "x_min = " << population_x[0] << " , t_min = " << population_t[0] << ", f = " << f[0];
+    return 0;
+}
+int main()
+{
+    srand(time(NULL)); // используем, чтобы при разных запусках генератора случ. чисел была всякий раз разная база и соотв. ряд значений
+    double ff = 10000;
+    double xx = 0, tt = 0;
+    //Поиск минимума по поверхности с шагом 0.01
+    cout << "Test search 1.0...10.0 step 0.01" << endl;
+    for (double x = 1; x < 10.0; x += 0.01)
+    {
+        for (double t = 1; t < 10.0; t += 0.01)
+        {
+            if (fitness_function(x, t) < ff)
+            {
+                ff = fitness_function(x, t);
+                xx = x;
+                tt = t;
+            }
+        }
+    }
+    cout << "x = " << xx << ", t = " << tt << ", f =" << ff << endl;
+    cout << "Solution: " << endl;
+    genetic(1, 10.0, 0.00001);
+    cin.get(); // заставит систему ждать ввода символа перед закрытием консоли
+    return 0;
+}
